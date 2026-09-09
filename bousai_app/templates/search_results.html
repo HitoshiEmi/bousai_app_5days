@@ -1,20 +1,303 @@
 {% extends "base.html" %}
 
+{% block title %}避難所検索結果{% endblock %}
+
+{% block body_class %}results-page{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root {
+    --wire-border: #333;
+    --wire-gray: #d8d8d8;
+    --wire-blue: #dcecf8;
+    --wire-text: #303030;
+  }
+
+  * { box-sizing: border-box; }
+
+  body.results-page {
+    margin: 0;
+    background: #fff;
+    color: var(--wire-text);
+    font-family: "Noto Sans JP", "Yu Gothic", sans-serif;
+  }
+
+  .results-page .site-header,
+  .results-page .site-nav { display: none; }
+
+  .results-page main {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .results-shell {
+    width: min(1425px, calc(100% - 44px));
+    min-height: 825px;
+    margin: 128px auto 70px;
+    border: 3px solid var(--wire-border);
+    position: relative;
+    padding: 126px 31px 34px 183px;
+  }
+
+  .results-title {
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    width: 632px;
+    height: 130px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--wire-gray);
+    border: 2px solid #999;
+    font-size: 32px;
+    font-weight: 400;
+  }
+
+  .results-status {
+    position: absolute;
+    top: 12px;
+    right: 29px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 19px;
+  }
+
+  .refresh-button,
+  .side-link,
+  .district-select {
+    border: 2px solid #aaa;
+    background: var(--wire-blue);
+    color: var(--wire-text);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .refresh-button {
+    width: 151px;
+    height: 57px;
+    font-size: 19px;
+  }
+
+  .results-sidebar {
+    position: absolute;
+    top: 352px;
+    left: 18px;
+    width: 147px;
+    display: grid;
+    gap: 73px;
+  }
+
+  .side-link {
+    display: grid;
+    min-height: 53px;
+    place-items: center;
+    text-decoration: none;
+    font-size: 18px;
+  }
+
+  .shelter-filter {
+    padding: 14px 18px 0;
+  }
+
+  .attribute-select {
+    width: 100%;
+    height: 48px;
+    padding: 0 17px;
+    appearance: auto;
+    background: #fff;
+    text-align: left;
+    border: 2px solid #aaa;
+    color: var(--wire-text);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .results-grid {
+    display: grid;
+    grid-template-columns: minmax(300px, 447px) minmax(330px, 1fr) 248px;
+    gap: 30px;
+    align-items: stretch;
+    margin-top: 18px;
+  }
+
+  .map-panel,
+  .list-panel {
+    height: 579px;
+    border: 2px solid #aaa;
+    background: #fff;
+  }
+
+  .map-panel { overflow: hidden; }
+  #shelterMap { width: 100%; height: 100%; }
+
+  .list-panel {
+    padding: 0;
+    overflow: auto;
+  }
+
+  .panel-heading {
+    margin: 0;
+    padding: 20px 18px 15px;
+    color: #777;
+    font-size: 18px;
+    font-weight: 400;
+    text-align: center;
+  }
+
+  .shelter-list,
+  .road-list {
+    margin: 0;
+    padding: 0 21px 24px;
+    list-style: none;
+  }
+
+  .shelter-list li,
+  .road-list li {
+    padding: 13px 0;
+    border-top: 1px solid #ddd;
+    font-size: 16px;
+  }
+
+  .empty-message {
+    margin: 25px 20px;
+    color: #a11;
+    text-align: center;
+  }
+
+  .error-message {
+    width: 347px;
+    min-height: 58px;
+    margin: 39px 0 0 9px;
+    padding: 15px;
+    border: 2px solid #a11;
+    background: #fff0ee;
+    color: #a11;
+    font-size: 18px;
+  }
+
+  @media (max-width: 1050px) {
+    .results-shell { width: calc(100% - 24px); margin-top: 30px; padding-left: 30px; }
+    .results-title { width: 48%; font-size: 26px; }
+    .results-sidebar { position: static; width: auto; display: flex; margin: 0 0 24px; gap: 12px; }
+    .side-link { width: 130px; }
+    .results-grid { grid-template-columns: 1fr 1fr; }
+    .road-list-panel { grid-column: 1 / -1; height: auto; min-height: 220px; }
+  }
+
+  @media (max-width: 650px) {
+    .results-shell { min-height: 0; margin: 16px 10px 30px; padding: 145px 14px 24px; }
+    .results-title { width: 100%; height: 112px; font-size: 25px; }
+    .results-status { top: 121px; right: 14px; font-size: 13px; }
+    .refresh-button { width: 82px; height: 37px; font-size: 14px; }
+    .shelter-filter { padding-top: 12px; }
+    .attribute-select { height: 52px; }
+    .results-grid { display: block; margin-top: 16px; }
+    .map-panel, .list-panel { height: 360px; margin-top: 16px; }
+    .error-message { width: 100%; margin: 20px 0 0; }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<h2>検索結果</h2>
+<div class="results-shell">
+  <h1 class="results-title">避難所検索結果</h1>
 
-{% if results %}
-  <ul>
-    {% for shelter in results %}
-    <li>{{ shelter.name }}</li>
-    {% endfor %}
-  </ul>
-{% else %}
-  <p>該当する避難所が見つかりませんでした</p>
-{% endif %}
+  <div class="results-status">
+    <span id="currentTime"></span>
+    <button class="refresh-button" type="button" onclick="window.location.reload()">更新</button>
+  </div>
 
-<p>
-  <a href="/shelter_search">検索画面に戻る</a> |
-  <a href="/">トップページへ戻る</a>
-</p>
+  <aside class="results-sidebar" aria-label="ページ移動">
+    <a class="side-link" href="/">ホーム</a>
+    <a class="side-link" href="/shelter_search">戻る</a>
+  </aside>
+
+  <div class="results-grid">
+    <section class="map-panel" aria-label="避難所地図">
+      <div id="shelterMap"></div>
+    </section>
+
+    <section class="list-panel" aria-label="避難所情報一覧">
+      <div class="shelter-filter">
+        <label for="attributeFilter" class="sr-only">避難所の属性を選択</label>
+        <select id="attributeFilter" class="attribute-select">
+          <option value="all">▼ 選択してください</option>
+          <option value="barrier-free">バリアフリー対応</option>
+          <option value="pet">ペット同行可</option>
+          <option value="medical">医療救護対応</option>
+        </select>
+      </div>
+      <h2 class="panel-heading">避難所情報一覧</h2>
+      {% if results %}
+      <ul class="shelter-list">
+        {% for shelter in results %}
+        {% set attribute_key = ['barrier-free', 'pet', 'medical'][loop.index0 % 3] %}
+        {% set attribute_name = {'barrier-free': 'バリアフリー対応', 'pet': 'ペット同行可', 'medical': '医療救護対応'}[attribute_key] %}
+        <li data-attribute="{{ attribute_key }}">
+          <strong>{{ shelter.name }}</strong><br>
+          <small>{{ attribute_name }}</small>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="empty-message">該当する避難所が見つかりませんでした</p>
+      {% endif %}
+    </section>
+
+    <section class="list-panel road-list-panel" aria-label="道路状況一覧">
+      <h2 class="panel-heading">道路状況一覧</h2>
+      <ul class="road-list">
+        <li>現在、情報はありません</li>
+      </ul>
+    </section>
+  </div>
+
+  {% if not results %}<p class="error-message">エラーメッセージ</p>{% endif %}
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const currentTime = document.getElementById('currentTime');
+  const now = new Date();
+  currentTime.textContent = now.getFullYear() + '年' + String(now.getMonth() + 1).padStart(2, '0') + '月' +
+    String(now.getDate()).padStart(2, '0') + '日 ' + String(now.getHours()).padStart(2, '0') +
+    '時' + String(now.getMinutes()).padStart(2, '0') + '分現在';
+
+  const map = L.map('shelterMap').setView([40.8222, 140.7474], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
+  {% for shelter in results %}
+  L.marker([40.8222 + {{ loop.index0 }} * 0.01, 140.7474 + {{ loop.index0 }} * 0.01])
+    .addTo(map).bindPopup('{{ shelter.name|e }}');
+  {% endfor %}
+
+  const attributeFilter = document.getElementById('attributeFilter');
+  if (attributeFilter) {
+    attributeFilter.addEventListener('change', function() {
+      document.querySelectorAll('.shelter-list li').forEach(function(item) {
+        item.hidden = attributeFilter.value !== 'all' && item.dataset.attribute !== attributeFilter.value;
+      });
+    });
+  }
+});
+</script>
 {% endblock %}
