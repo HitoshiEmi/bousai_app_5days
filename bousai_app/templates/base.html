@@ -4,13 +4,17 @@
   <meta charset="utf-8">
   <title>{% block title %}防災アプリ{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% block head %}{% endblock %}
 </head>
-<body>
-  <!-- ヘッダー -->
-  <h1>防災アプリ</h1>
+<body class="{% block body_class %}{% endblock %}">
+  <header class="site-header">
+    <div class="header-inner">
+      <h1>防災アプリ</h1>
+      <button class="menu-toggle" type="button" aria-label="メニューを開く" aria-expanded="false">☰</button>
+    </div>
+  </header>
 
-  <!-- ナビゲーション -->
-  <nav>
+  <nav class="site-nav">
     <a href="/">ホーム</a> |
     <a href="/shelter_search">避難所検索</a> |
     <a href="/shelter_register">避難所登録</a> |
@@ -24,11 +28,21 @@
       <a href="/login">ログイン</a>
     {% endif %}
   </nav>
-  <hr>
 
   <main>
     <!-- ここに子テンプレートの content が入る -->
     {% block content %}{% endblock %}
   </main>
+
+  <script>
+    const menuToggle = document.querySelector('.menu-toggle');
+    const siteNav = document.querySelector('.site-nav');
+    if (menuToggle && siteNav) {
+      menuToggle.addEventListener('click', function() {
+        const isOpen = siteNav.classList.toggle('is-open');
+        this.setAttribute('aria-expanded', isOpen);
+      });
+    }
+  </script>
 </body>
 </html>
