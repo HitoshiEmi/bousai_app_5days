@@ -4,18 +4,20 @@
 
 {% block content %}
 <h2>発信ボード</h2>
-<p>住民向けの発信を登録・確認できます。</p>
+<p>発信内容を確認できます。</p>
 
 <!-- 発信一覧 -->
 <h3>発信一覧</h3>
 {% if instructions %}
 <table border="1" cellpadding="5">
-  <tr>
-    <th>内容</th>
-  </tr>
+  <tr><th>対象</th><th>内容</th><th>避難先</th><th>状態</th><th>更新日時</th></tr>
   {% for inst in instructions %}
   <tr>
-    <td>{{ inst.content }}{% if inst.shelter %}（避難先: {{ inst.shelter }}）{% endif %}</td>
+    <td>{{ inst.target }}</td>
+    <td>{{ inst.content }}</td>
+    <td>{{ inst.shelter or 'なし' }}</td>
+    <td>{{ inst.status or '不明' }}</td>
+    <td>{{ inst.updated_at or inst.created_at or '不明' }}</td>
   </tr>
   {% endfor %}
 </table>

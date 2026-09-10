@@ -9,13 +9,13 @@
   .register-screen { margin: 0; background: #fff; color: #333; font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", sans-serif; }
   .register-screen .site-header, .register-screen .site-nav { display: none; }
   .register-screen main { width: 100%; margin: 0; }
-  .register-page { width: min(1426px, calc(100% - 80px)); min-height: 824px; margin: 128px auto 40px; }
-  .register-panel { min-height: 824px; overflow: hidden; background: #fff; border: 3px solid #292929; }
-  .register-heading { display: grid; grid-template-columns: 50% 1fr; min-height: 118px; border-bottom: 0; }
-  .register-heading h2 { display: flex; align-items: center; justify-content: center; margin: 0; background: #d9d9d9; border-right: 1px solid #999; color: #333; font-size: clamp(34px, 3vw, 48px); font-weight: 400; letter-spacing: .03em; }
-  .register-meta { display: flex; align-items: flex-start; justify-content: flex-end; gap: 22px; padding: 18px 27px 0; color: #444; font-size: 20px; white-space: nowrap; }
-  .reset-link { display: inline-flex; align-items: center; justify-content: center; width: 150px; height: 59px; margin-top: 34px; color: #444; background: #dcecf7; border: 2px solid #99a5ad; font-size: 18px; text-decoration: none; }
-  .register-body { display: grid; grid-template-columns: 175px minmax(0, 1fr) 340px; column-gap: 40px; min-height: 703px; padding: 48px 58px 40px 23px; }
+  .register-page { width: min(1425px, calc(100% - 44px)); min-height: 825px; margin: 128px auto 70px; }
+  .register-panel { position: relative; min-height: 825px; overflow: hidden; background: #fff; border: 3px solid #292929; }
+  .register-heading { display: grid; grid-template-columns: 632px 1fr; min-height: 130px; border-bottom: 0; }
+  .register-heading h2 { display: flex; align-items: center; justify-content: center; margin: 0; background: #d9d9d9; border: 2px solid #999; color: #333; font-size: 30px; font-weight: 400; letter-spacing: .03em; }
+  .register-meta { display: flex; align-items: flex-start; justify-content: flex-end; gap: 18px; padding: 15px 29px 0; color: #444; font-size: 17px; white-space: nowrap; }
+  .reset-link { display: inline-flex; align-items: center; justify-content: center; width: 110px; height: 57px; margin-top: -3px; color: #444; background: #dcecf7; border: 2px solid #99a5ad; font-size: 17px; text-decoration: none; }
+  .register-body { display: grid; grid-template-columns: 147px minmax(0, 1fr) 248px; column-gap: 30px; min-height: 695px; padding: 48px 31px 34px 18px; }
   .register-form { grid-column: 2; min-width: 0; padding-top: 0; }
   .field { position: relative; display: grid; grid-template-columns: 345px 292px; column-gap: 48px; align-items: start; min-height: 99px; margin: 0; }
   .field label, .group-label { display: block; grid-column: 1; margin: 0 0 3px; color: #444; font-size: 18px; font-weight: 400; }
@@ -48,7 +48,7 @@
   .button-home { grid-column: 1; align-self: start; margin-top: 246px; text-decoration: none; }
   .button:hover, .reset-link:hover { background: #cce2ef; }
   @media (max-width: 1000px) {
-    .register-page { width: calc(100% - 28px); margin-top: 28px; }
+    .register-page { width: calc(100% - 24px); margin-top: 30px; }
     .register-body { grid-template-columns: 1fr; gap: 28px; padding: 30px 24px; }
     .register-form, .action-column, .button-home { grid-column: 1; }
     .action-column { align-items: stretch; }
@@ -59,7 +59,7 @@
     .register-page, .register-panel { min-height: 0; }
     .register-page { width: calc(100% - 16px); margin: 16px auto; }
     .register-heading { display: block; }
-    .register-heading h2 { min-height: 82px; border-right: 0; font-size: 34px; }
+    .register-heading h2 { min-height: 82px; border-right: 0; font-size: 25px; }
     .register-meta { justify-content: space-between; align-items: center; padding: 12px 14px; font-size: 14px; }
     .reset-link { width: 100px; height: 44px; margin-top: 0; font-size: 16px; }
     .register-body { padding: 22px 14px; }
@@ -86,12 +86,17 @@
 
     <div class="register-body">
       <form class="register-form" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="save">
         <input type="hidden" name="editing_id" value="{{ editing_id }}">
         <div class="field">
           <label for="name">避難所名入力（必須）</label>
           <input type="text" id="name" name="name" value="{{ form_data.name }}" placeholder="（自由入力）" aria-invalid="{{ 'true' if field_errors.name else 'false' }}">
           {% if field_errors.name %}<p class="error-text" role="alert">{{ field_errors.name }}</p>{% endif %}
+        </div>
+        <div class="field">
+          <label for="district">地区</label>
+          <input type="text" id="district" name="district" value="{{ form_data.district }}" placeholder="例: 青森市">
         </div>
         <div class="field">
           <label for="address">住所（必須）</label>
@@ -111,6 +116,14 @@
           </select>
           {% if field_errors.status %}<p class="error-text" role="alert">{{ field_errors.status }}</p>{% endif %}
         </div>
+        <div class="field">
+          <label for="latitude">緯度</label>
+          <input type="number" id="latitude" name="latitude" value="{{ form_data.latitude }}" step="any" placeholder="例: 40.8222">
+        </div>
+        <div class="field">
+          <label for="longitude">経度</label>
+          <input type="number" id="longitude" name="longitude" value="{{ form_data.longitude }}" step="any" placeholder="例: 140.7474">
+        </div>
         <div class="field check-field">
           <span class="group-label">設備情報選択</span>
           <details class="choice-panel"><summary>選択してください</summary><div class="check-grid">{% for option in equipment_options %}<label class="check-option"><input type="checkbox" name="equipment" value="{{ option }}"{% if option in form_data.equipment %} checked{% endif %}> {{ option }}</label>{% endfor %}</div></details>
@@ -127,6 +140,7 @@
       <aside class="action-column">
         {% if message %}<p class="message message-{{ message_type }}" role="{{ 'status' if message_type == 'success' else 'alert' }}">{{ message }}</p>{% endif %}
         <form class="load-form" method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="action" value="load">
           <label for="shelter_id">登録済み避難所</label>
           <select id="shelter_id" name="shelter_id"><option value="">登録内容更新</option>{% for shelter in shelters %}<option value="{{ shelter.id }}"{% if selected_id == shelter.id|string %} selected{% endif %}>{{ shelter.name }}</option>{% endfor %}</select>

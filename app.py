@@ -3,6 +3,7 @@ from urllib.parse import urlparse, urljoin
 from functools import wraps
 import json
 import os
+import secrets
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
@@ -16,20 +17,25 @@ app = Flask(
     template_folder=os.path.join(APP_DIR, 'templates'),
     static_folder=os.path.join(APP_DIR, 'static'),
 )
-app.secret_key = 'your-secret-key-here'
+app.secret_key = os.environ.get('SECRET_KEY', 'development-only-change-me')
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=os.environ.get('SESSION_COOKIE_SECURE', '').lower() == 'true'
+)
 
-# 管理者認証情報
+# ADMIN_PASSWORD を本番環境で必ず設定する。未設定時はデモ用の固定値を使う。
 ADMIN_CREDENTIALS = {
-    'admin': '123'
+    'admin': os.environ.get('ADMIN_PASSWORD', '123')
 }
 
 # ────────────────────────────────
 # 気象警報・注意報設定
-PREFECTURE_CODE = "020000"  # 青森県
-AREA_NAME = "青森市"
+PREFECTURE_CODE = os.environ.get("PREFECTURE_CODE", "020000")
+AREA_NAME = os.environ.get("AREA_NAME", "青森市")
 
 # ワークショップ課題：青森市の市区町村コードに変更する
-AREA_CODE = "1420500"
+AREA_CODE = os.environ.get("AREA_CODE", "1420500")
 
 WARNING_URL = (
     f"https://www.jma.go.jp/bosai/warning/data/r8/{PREFECTURE_CODE}.json"
@@ -82,6 +88,7 @@ WARNING_CODES = {
 # サンプルデータの読み込み
 DATA_FILE = os.path.join(APP_DIR, 'data', 'shelters.json')
 INSTRUCTIONS_FILE = os.path.join(APP_DIR, 'data', 'instructions.json')
+ROADS_FILE = os.path.join(APP_DIR, 'data', 'roads.json')
 
 def load_json(path, default):
     """JSONファイルを読み込む（存在しない・壊れている場合は default を返す）"""
@@ -93,6 +100,7 @@ def load_json(path, default):
 
 shelters = load_json(DATA_FILE, [])
 instructions = load_json(INSTRUCTIONS_FILE, [])
+roads = load_json(ROADS_FILE, [])
 
 def save_instructions():
     """指示ボードのデータをファイルに保存する"""
@@ -116,9 +124,12 @@ def shelter_form_data(source=None):
     source = source or {}
     return {
         'name': str(source.get('name', '')).strip(),
+        'district': str(source.get('district', '')).strip(),
         'address': str(source.get('address', '')).strip(),
         'capacity': str(source.get('capacity', '')).strip(),
         'status': str(source.get('status', '')).strip(),
+        'latitude': str(source.get('latitude', '')).strip(),
+        'longitude': str(source.get('longitude', '')).strip(),
         'equipment': source.get('equipment', []),
         'supplies': source.get('supplies', []),
     }
@@ -151,6 +162,25 @@ def is_safe_url(target):
     test_url = urlparse(urljoin(request.host_url, target))
     return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
 
+
+def csrf_token():
+    """フォーム送信時に使うセッション単位の CSRF トークン"""
+    if 'csrf_token' not in session:
+        session['csrf_token'] = secrets.token_urlsafe(32)
+    return session['csrf_token']
+
+
+app.jinja_env.globals['csrf_token'] = csrf_token
+
+
+@app.before_request
+def validate_csrf():
+    if request.method == 'POST':
+        expected = session.get('csrf_token')
+        submitted = request.form.get('csrf_token')
+        if not expected or not submitted or not secrets.compare_digest(expected, submitted):
+            return jsonify({'error': 'Invalid CSRF token'}), 400
+
 def login_required(f):
     """認証が必要なページに付けるデコレータ"""
     @wraps(f)
@@ -180,8 +210,15 @@ def format_report_time(iso_str):
 
 
 def filter_shelters(district=None):
-    """district 指定があれば一致する避難所のみ、なければ全件を返す"""
-    return [s for s in shelters if not district or s.get('district') == district]
+    """キーワードがあれば避難所名・地区名・住所の部分一致で絞り込む"""
+    keyword = (district or '').strip()
+    return [
+        shelter for shelter in shelters
+        if not keyword
+        or keyword in shelter.get('name', '')
+        or keyword in shelter.get('district', '')
+        or keyword in shelter.get('address', '')
+    ]
 
 
 def parse_area_warnings(warning_data):
@@ -229,14 +266,15 @@ def parse_area_warnings(warning_data):
         if status not in ("発表", "継続") or not code:
             continue
 
-        warnings.append({
-            "name": WARNING_CODES.get(
-                code,
-                f"警報・注意報（コード: {code}）"
-            ),
-            "code": code,
-            "status": status
-        })
+        if not any(item.get("code") == code for item in warnings):
+            warnings.append({
+                "name": WARNING_CODES.get(
+                    code,
+                    f"警報・注意報（コード: {code}）"
+                ),
+                "code": code,
+                "status": status
+            })
 
     latest_report_datetime = max(report_datetimes, default="")
     return warnings, latest_report_datetime
@@ -272,10 +310,30 @@ def get_weather_warnings():
 @app.route('/')
 def index():
     resident_notices = [i for i in instructions if i.get('target') == '住民']
+    notice_items = resident_notices or [
+        {
+            'content': '避難所情報を更新しました。',
+            'shelter': '',
+            'status': '情報',
+            'updated_at': get_japan_time()
+        },
+        {
+            'content': '道路状況を確認してください。',
+            'shelter': '',
+            'status': '注意',
+            'updated_at': get_japan_time()
+        }
+    ]
+    notice_items = [
+        {**notice, 'is_unread': not bool(notice.get('is_read', False))}
+        for notice in notice_items
+    ]
     return render_template(
         'index.html',
         resident_notices=resident_notices,
-        shelters=shelters
+        notice_items=notice_items,
+        shelters=shelters,
+        map_center=(40.8222, 140.7474)
     )
 
 # ログインページ
@@ -354,9 +412,12 @@ def shelter_register():
         if not field_errors:
             shelter_values = {
                 'name': form_data['name'],
+                'district': form_data['district'],
                 'address': form_data['address'],
                 'capacity': form_data['capacity'],
                 'status': form_data['status'],
+                'latitude': form_data['latitude'],
+                'longitude': form_data['longitude'],
                 'equipment': form_data['equipment'],
                 'supplies': form_data['supplies'],
             }
@@ -414,7 +475,25 @@ def shelter_register():
 # 避難所検索ページ
 @app.route('/shelter_search')
 def shelter_search():
-    return render_template('shelter_search.html')
+    district = request.args.get('district', '').strip()
+    equipment = request.args.get('equipment', '').strip()
+    supply = request.args.get('supply', '').strip()
+    filtered_shelters = [
+        shelter for shelter in shelters
+        if (not district or district in shelter.get('name', '') or district in shelter.get('district', '') or district in shelter.get('address', ''))
+        and (not equipment or equipment in shelter.get('equipment', []))
+        and (not supply or supply in shelter.get('supplies', []))
+    ]
+    return render_template(
+        'shelter_search.html',
+        current_time=get_japan_time(),
+        shelters=filtered_shelters,
+        equipment_options=SHELTER_EQUIPMENT,
+        supply_options=SHELTER_SUPPLIES,
+        selected_district=district,
+        selected_equipment=equipment,
+        selected_supply=supply
+    )
 
 # 全施設一覧ページ
 @app.route('/all_shelters')
@@ -422,7 +501,8 @@ def all_shelters():
     return render_template(
         'search_results.html',
         results=shelters,
-        equipment_options=SHELTER_EQUIPMENT
+        equipment_options=SHELTER_EQUIPMENT,
+        current_time=get_japan_time()
     )
 
 
@@ -430,8 +510,7 @@ def all_shelters():
 @app.route('/board')
 @login_required
 def board():
-    resident_instructions = [i for i in instructions if i.get('target') == '住民']
-    return render_template('board.html', instructions=resident_instructions)
+    return render_template('board.html', instructions=instructions)
 
 # 検索結果ページ：templates/search_results.html を返す
 @app.route('/search_results')
@@ -440,7 +519,8 @@ def search_results():
     return render_template(
         'search_results.html',
         results=results,
-        equipment_options=SHELTER_EQUIPMENT
+        equipment_options=SHELTER_EQUIPMENT,
+        current_time=get_japan_time()
     )
 
 # JSON API：/shelters?district=地区名
@@ -460,6 +540,62 @@ def get_shelters():
 def api_weather_warnings():
     """気象警報・注意報をJSON形式で返すAPI"""
     return jsonify(get_weather_warnings())
+
+
+def valid_coordinate(value, minimum, maximum):
+    """地図に描画可能な緯度・経度だけを受け入れる"""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if minimum <= number <= maximum else None
+
+
+@app.route('/api/map_data')
+def api_map_data():
+    """避難所と道路をホーム画面が一度に取得できる形式で返す"""
+    mapped_shelters = []
+    for shelter in shelters:
+        latitude = valid_coordinate(shelter.get('latitude'), -90, 90)
+        longitude = valid_coordinate(shelter.get('longitude'), -180, 180)
+        if latitude is None or longitude is None:
+            continue
+        mapped_shelters.append({
+            'id': shelter.get('id'),
+            'name': shelter.get('name', ''),
+            'district': shelter.get('district', ''),
+            'latitude': latitude,
+            'longitude': longitude,
+            'status': shelter.get('status', '')
+        })
+
+    mapped_roads = []
+    for road in roads:
+        coordinates = road.get('coordinates', []) if isinstance(road, dict) else []
+        valid_coordinates = []
+        for point in coordinates if isinstance(coordinates, list) else []:
+            if not isinstance(point, (list, tuple)) or len(point) < 2:
+                continue
+            latitude = valid_coordinate(point[0], -90, 90)
+            longitude = valid_coordinate(point[1], -180, 180)
+            if latitude is not None and longitude is not None:
+                valid_coordinates.append([latitude, longitude])
+        if len(valid_coordinates) >= 2:
+            mapped_roads.append({
+                'id': road.get('id'),
+                'name': road.get('name', ''),
+                'status': road.get('status', '通行注意'),
+                'coordinates': valid_coordinates
+            })
+
+    return jsonify({
+        'shelters': mapped_shelters,
+        'shelter_total': len(shelters),
+        'shelter_open': sum(1 for shelter in shelters if shelter.get('status') == '開設中'),
+        'roads': mapped_roads,
+        'road_total': len(mapped_roads),
+        'resident_notice_total': sum(1 for item in instructions if item.get('target') == '住民')
+    })
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

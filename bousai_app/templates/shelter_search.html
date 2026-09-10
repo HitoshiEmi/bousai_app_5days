@@ -1,8 +1,126 @@
 {% extends "base.html" %}
 
-{% block content %}
-<h2>避難所検索</h2>
-<p>登録されている避難所を確認できます。</p>
+{% block title %}避難所検索{% endblock %}
+{% block body_class %}search-page{% endblock %}
 
-<p><a href="/all_shelters">全施設一覧</a></p>
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  * { box-sizing: border-box; }
+  body.search-page { margin: 0; background: #fff; color: #444; font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", sans-serif; }
+  .search-page .site-header, .search-page .site-nav { display: none; }
+  .search-page main { width: 100%; max-width: none; margin: 0; padding: 0; }
+  .search-page button, .search-page input, .search-page select { border-radius: 0; font: inherit; }
+  .search-panel { width: min(1425px, calc(100% - 44px)); min-height: 825px; margin: 128px auto 70px; border: 3px solid #292929; background: #fff; }
+  .search-heading { display: grid; grid-template-columns: 632px 1fr; min-height: 130px; }
+  .search-heading h1 { display: flex; align-items: center; justify-content: center; margin: 0; padding: 0 12px; width: 632px; height: 130px; background: #d9d9d9; border: 2px solid #999; color: #333; font-size: 30px; font-weight: 400; }
+  .search-meta { display: flex; justify-content: flex-end; align-items: flex-start; gap: 18px; padding: 15px 29px 0 0; font-size: 17px; white-space: nowrap; }
+  .refresh-button { width: 110px; height: 57px; margin-top: -3px; color: #444; background: #dcecf7; border: 2px solid #99a5ad; cursor: pointer; font-size: 17px; }
+  .search-body { display: grid; grid-template-columns: 147px minmax(0, 1fr) 248px; column-gap: 30px; min-height: 650px; padding: 48px 31px 34px 18px; }
+  .home-link { align-self: start; width: 147px; height: 53px; margin-top: 144px; display: grid; place-items: center; color: #444; background: #dcecf7; border: 2px solid #99a5ad; text-decoration: none; font-size: 17px; }
+  .search-main { display: grid; grid-template-columns: minmax(260px, 1.55fr) minmax(180px, .95fr); grid-template-rows: 34px 316px; gap: 12px; min-width: 0; }
+  .map-panel { grid-column: 1; grid-row: 2; height: 316px; margin-top: 0; border: 1px solid #999; overflow: hidden; }
+  #shelterMap { width: 100%; height: 100%; }
+  .map-empty { display: grid; width: 100%; height: 100%; place-items: center; color: #777; font-size: 12px; }
+  .results-panel { grid-column: 2; grid-row: 2; height: 230px; border: 1px solid #999; }
+  .results-panel h2, .filter-title { height: 34px; margin: 0; padding: 9px 8px; border-bottom: 1px solid #999; color: #555; font-size: 12px; font-weight: 400; }
+  .results-list { height: 194px; margin: 0; padding: 0; overflow: auto; list-style: none; }
+  .results-list li { min-height: 44px; padding: 8px; border-bottom: 1px solid #aaa; font-size: 11px; line-height: 1.45; }
+  .results-list strong { font-weight: 400; }
+  .empty-result { padding: 13px 8px !important; color: #777; }
+  .search-form { grid-column: 1 / -1; grid-row: 1; align-self: start; display: grid; grid-template-columns: minmax(0, 1fr) 132px; height: 34px; margin-top: 0; }
+  .search-form input { width: 100%; height: 34px; padding: 4px 8px; border: 1px solid #999; color: #555; font-size: 12px; }
+  .search-form button { height: 34px; color: #444; background: #dcecf7; border: 1px solid #999; cursor: pointer; font-size: 12px; }
+  .filters { min-width: 0; }
+  .filter-box { margin-bottom: 0; border: 1px solid #999; border-bottom: 0; }
+  .filter-box:last-child { border-bottom: 1px solid #999; }
+  .filter-title { height: 34px; padding: 9px 8px; }
+  .filter-control { width: 100%; height: 34px; padding: 5px 8px; border: 0; border-bottom: 1px solid #aaa; color: #666; background: #fff; font-size: 11px; }
+  .filter-box select { appearance: auto; }
+  .filter-hint { margin: 0; padding: 9px 8px; color: #777; font-size: 11px; }
+  .all-link { display: grid; height: 34px; place-items: center; margin-top: 14px; color: #444; background: #dcecf7; border: 1px solid #999; text-decoration: none; font-size: 12px; }
+  @media (max-width: 850px) {
+    .search-panel { width: calc(100% - 24px); margin-top: 30px; }
+    .search-body { grid-template-columns: 147px minmax(0, 1fr); padding-right: 12px; }
+    .filters { grid-column: 2; margin-top: 16px; }
+    .search-main { grid-column: 2; }
+  }
+  @media (max-width: 600px) {
+    .search-heading { display: block; min-height: 112px; }
+    .search-heading h1 { margin: 0; width: 100%; }
+    .search-meta { justify-content: space-between; gap: 10px; padding: 10px; }
+    .search-body { display: block; padding: 24px 10px 25px; }
+    .home-link { margin: 0 0 15px; }
+    .search-main { display: flex; flex-direction: column; }
+    .search-form { order: -1; }
+    .map-panel, .results-panel { flex: none; }
+    .map-panel, .results-panel { margin-bottom: 12px; }
+    .search-form { margin-bottom: 12px; }
+    .filters { margin-top: 12px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="search-panel" aria-labelledby="search-title">
+  <header class="search-heading">
+    <h1 id="search-title">避難所検索画面</h1>
+    <div class="search-meta">
+      <time datetime="{{ current_time|default('') }}">{{ current_time|default('更新日時: 不明') }}現在</time>
+      <button class="refresh-button" type="button" onclick="window.location.reload()">更新</button>
+    </div>
+  </header>
+  <div class="search-body">
+    <a class="home-link" href="{{ url_for('index') }}">ホーム</a>
+    <div class="search-main">
+      <div class="map-panel" aria-label="避難所地図"><div id="shelterMap"><span class="map-empty">クリック（地図・一覧から）</span></div></div>
+      <section class="results-panel" aria-labelledby="result-title">
+        <h2 id="result-title">検索結果</h2>
+        <ul class="results-list">
+          {% for shelter in shelters %}
+          <li><strong>{{ shelter.name }}</strong><br>{{ shelter.address }}<br>定員 {{ shelter.capacity }}人 / {{ shelter.status }}</li>
+          {% else %}<li class="empty-result">該当する避難所が見つかりませんでした</li>{% endfor %}
+        </ul>
+      </section>
+      <form class="search-form" method="get" action="{{ url_for('search_results') }}">
+        <input type="search" name="district" value="{{ selected_district|default('') }}" placeholder="現在地から最も近い避難所を提示" aria-label="検索キーワード">
+        <button type="submit">検索ボタン</button>
+      </form>
+    </div>
+    <aside class="filters" aria-label="検索条件">
+      <div class="filter-box">
+        <h2 class="filter-title">欲しい設備を選んでください</h2>
+        <select class="filter-control" name="equipment" form="shelter-filter-form" aria-label="設備" onchange="this.form.submit()">
+          <option value="">▼ 選択してください</option>
+          {% for option in equipment_options %}<option value="{{ option }}"{% if selected_equipment == option %} selected{% endif %}>{{ option }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="filter-box">
+        <h2 class="filter-title">物資情報を選んでください</h2>
+        <select class="filter-control" name="supply" form="shelter-filter-form" aria-label="物資" onchange="this.form.submit()">
+          <option value="">▼ 選択してください</option>
+          {% for option in supply_options %}<option value="{{ option }}"{% if selected_supply == option %} selected{% endif %}>{{ option }}</option>{% endfor %}
+        </select>
+      </div>
+      <a class="all-link" href="{{ url_for('all_shelters') }}">全施設一覧</a>
+    </aside>
+  </div>
+</section>
+<form id="shelter-filter-form" method="get" action="{{ url_for('shelter_search') }}">
+  <input type="hidden" name="district" value="{{ selected_district|default('') }}">
+</form>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const mapElement = document.getElementById('shelterMap');
+  const shelters = {{ shelters|tojson }};
+  if (!mapElement || typeof L === 'undefined') return;
+  const located = shelters.filter(function(shelter) { return Number.isFinite(Number(shelter.latitude)) && Number.isFinite(Number(shelter.longitude)); });
+  if (!located.length) return;
+  mapElement.innerHTML = '';
+  const map = L.map(mapElement).setView([located[0].latitude, located[0].longitude], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map);
+  located.forEach(function(shelter) { L.marker([shelter.latitude, shelter.longitude]).addTo(map).bindPopup('<strong>' + shelter.name + '</strong><br>' + shelter.address); });
+});
+</script>
 {% endblock %}

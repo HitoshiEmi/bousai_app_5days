@@ -2,9 +2,10 @@
   {
     "id": 1,
     "name": "長島小学校",
+    "district": "青森市",
     "address": "青森市長島二丁目6-1",
     "capacity": "300",
-    "status": "未開設",
+    "status": "開設中",
     "equipment": ["バリアフリー", "多目的トイレ"],
     "supplies": ["飲料水", "食料", "毛布"],
     "latitude": 40.8213262,
@@ -13,6 +14,7 @@
   {
     "id": 2,
     "name": "浦町小学校",
+    "district": "青森市",
     "address": "青森市中央二丁目17-13",
     "capacity": "350",
     "status": "未開設",
@@ -24,6 +26,7 @@
   {
     "id": 3,
     "name": "筒井小学校",
+    "district": "青森市",
     "address": "青森市筒井一丁目1-1",
     "capacity": "400",
     "status": "未開設",
@@ -35,6 +38,7 @@
   {
     "id": 4,
     "name": "古川小学校",
+    "district": "青森市",
     "address": "青森市中央二丁目17-13",
     "capacity": "300",
     "status": "未開設",
@@ -46,6 +50,7 @@
   {
     "id": 5,
     "name": "沖館小学校",
+    "district": "青森市",
     "address": "青森市沖館一丁目3-1",
     "capacity": "350",
     "status": "未開設",

@@ -1,289 +1,566 @@
 {% extends "base.html" %}
 
-{% block title %}防災アプリ{% endblock %}
+{% block title %}ホーム画面{% endblock %}
+{% block body_class %}home-screen{% endblock %}
 
 {% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-    :root {
-        --app-blue: #2d5cae;
-        --app-green: #1d9b4c;
-        --page-bg: #f7f9fc;
-        --card-border: #edf1f5;
+  :root {
+    --wire-black: #333;
+    --wire-gray: #d9d9d9;
+    --wire-blue: #deebf4;
+    --wire-line: #999;
+    --wire-red: #ff1f1f;
+    --wire-text: #555;
+  }
+
+  * { box-sizing: border-box; }
+
+  body.home-screen {
+    margin: 0;
+    background: #fff;
+    color: var(--wire-text);
+    font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", sans-serif;
+  }
+
+  .home-screen .site-header,
+  .home-screen .site-nav { display: none; }
+
+  .home-screen main {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  .home-frame {
+    position: relative;
+    width: min(850px, calc(100% - 44px));
+    min-height: 825px;
+    margin: 128px auto 70px;
+    border: 2px solid #333;
+    overflow: hidden;
+    background: #fff;
+  }
+
+  .home-title {
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 342px;
+    height: 59px;
+    margin: 0;
+    background: var(--wire-gray);
+    border: 1px solid #999;
+    color: #333;
+    font-size: 16px;
+    font-weight: 400;
+  }
+
+  .home-toolbar {
+    position: absolute;
+    top: 0;
+    right: 8px;
+    display: flex;
+    align-items: flex-start;
+    height: 40px;
+  }
+
+  .home-time {
+    width: 172px;
+    padding-top: 16px;
+    color: #333;
+    font-size: 11px;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .home-refresh {
+    width: 61px;
+    height: 38px;
+    border: 1px solid #9aa9b2;
+    background: var(--wire-blue);
+    color: #333;
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .home-language {
+    position: absolute;
+    top: 47px;
+    right: 39px;
+    z-index: 10;
+    width: 79px;
+    height: 56px;
+    padding: 0 5px;
+    border: 1px solid #aaa;
+    background: #fff;
+    color: #666;
+    font: inherit;
+    font-size: 11px;
+  }
+
+  .home-language option { background: #fff; }
+
+  .home-menu {
+    position: absolute;
+    top: 103px;
+    left: 43px;
+    display: grid;
+    gap: 29px;
+    width: 127px;
+  }
+
+  .home-menu a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 127px;
+    height: 37px;
+    border: 1px solid #9aa9b2;
+    background: var(--wire-blue);
+    color: #333;
+    font-size: 11px;
+    text-decoration: none;
+  }
+
+  .home-menu a:hover,
+  .home-refresh:hover { background: #cfe1ee; }
+
+  .home-menu a:focus-visible,
+  .home-refresh:focus-visible,
+  .home-language:focus-visible { outline: 2px solid #1a73a8; outline-offset: 2px; }
+
+  .home-map {
+    position: absolute;
+    top: 103px;
+    left: 237px;
+    width: 379px;
+    height: 223px;
+    border: 1px solid var(--wire-line);
+    background: #f8f8f8;
+  }
+
+  #shelterMap {
+    width: 100%;
+    height: 100%;
+  }
+
+  .map-placeholder {
+    position: absolute;
+    inset: 0;
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, .88);
+    color: #777;
+    font-size: 11px;
+    pointer-events: none;
+  }
+
+  .map-placeholder.is-hidden { display: none; }
+
+  .home-legend {
+    position: absolute;
+    top: 103px;
+    right: 39px;
+    width: 154px;
+    height: 223px;
+    padding: 91px 8px 8px;
+    border: 1px solid var(--wire-line);
+    background: #fff;
+    color: #777;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .home-legend-title { margin-bottom: 2px; }
+  .home-legend ul { margin: 0; padding: 0; list-style: none; }
+  .home-legend li { display: flex; align-items: center; gap: 5px; margin: 2px 0; }
+  .legend-icon {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    flex: 0 0 15px;
+    border: 1px solid #697586;
+    border-radius: 50%;
+    background: #697586;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+  }
+  .legend-icon.shelter { background: #2f80c0; border-color: #1d5f91; }
+  .legend-icon.closed { background: #d92d20; border-color: #a61912; }
+  .legend-icon.traffic { background: #e47700; border-color: #a95500; }
+  .legend-icon.caution { background: #a56a00; border-color: #744900; }
+  .legend-icon.warning { background: #c62828; border-color: #861b1b; border-radius: 3px; }
+  .legend-icon.warning::before { content: "!"; }
+  .legend-icon.road::before { content: ""; width: 9px; height: 3px; background: #fff; }
+  .map-shelter-icon,
+  .map-road-icon,
+  .map-warning-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .4);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .map-shelter-icon { background: #2f80c0; }
+  .map-shelter-icon.open { background: #18864b; }
+  .map-road-icon.closed { background: #d92d20; }
+  .map-road-icon.traffic { background: #e47700; }
+  .map-road-icon.caution { background: #a56a00; }
+  .map-warning-icon { background: #c62828; border-radius: 4px; }
+
+  .home-error {
+    position: absolute;
+    top: 338px;
+    left: 35px;
+    width: 200px;
+    min-height: 33px;
+    margin: 0;
+    padding: 7px 8px;
+    border: 1px solid var(--wire-red);
+    background: #fff1f1;
+    color: var(--wire-red);
+    font-size: 10px;
+    line-height: 1.4;
+  }
+
+  .home-error.is-hidden { display: none; }
+
+  .home-info {
+    position: absolute;
+    top: 339px;
+    left: 277px;
+    right: auto;
+    width: 534px;
+    height: 180px;
+    padding: 28px 10px 8px;
+    border: 1px solid var(--wire-line);
+    background: #fff;
+    color: #4b5d6b;
+    font-size: 12px;
+  }
+
+  .home-info-title {
+    position: absolute;
+    top: 28px;
+    left: 0;
+    width: 55%;
+    margin: 0;
+    color: #3c5264;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .home-info-list {
+    width: 55%;
+    margin: 25px 0 0;
+    padding: 0;
+    list-style: none;
+    line-height: 1.65;
+  }
+
+  .home-info-list li { white-space: nowrap; }
+  .home-info-list strong { color: #1558a6; font-weight: 700; }
+
+  .home-info .home-notices-panel {
+    position: absolute;
+    top: 20px;
+    right: 0;
+    width: 45%;
+    height: 150px;
+    padding: 8px;
+    border: 0;
+    border-left: 1px solid var(--wire-line);
+    background: #fff;
+    color: #4b5d6b;
+  }
+
+  .home-notices-title {
+    margin: 0 0 5px;
+    color: #3c5264;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .home-notices {
+    height: 110px;
+    margin: 0;
+    padding: 0 5px 0 16px;
+    overflow-y: auto;
+    border-top: 1px solid #e1e6ea;
+    list-style: none;
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .home-notices li {
+    padding: 5px 0;
+    border-bottom: 1px solid #edf0f2;
+    overflow-wrap: anywhere;
+  }
+
+  .home-notices li.is-unread {
+    background: #fff0f0;
+    color: #9e4b4b;
+  }
+
+  .home-notice-status {
+    display: block;
+    color: #7a8790;
+    font-size: 10px;
+  }
+
+  .leaflet-control-attribution { font-size: 8px; }
+  .leaflet-popup-content { font-size: 11px; }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @media (max-width: 700px) {
+    .home-frame {
+      width: calc(100% - 12px);
+      height: auto;
+      min-height: 700px;
+      margin-top: 16px;
+      overflow: visible;
     }
 
-    * { box-sizing: border-box; }
+    .home-title { width: 42%; }
+    .home-toolbar { right: 5px; }
+    .home-time { width: 130px; font-size: 10px; }
+    .home-language { right: 25px; }
+    .home-menu { top: 92px; left: 5%; }
+    .home-map { top: 92px; left: 32%; width: 45%; height: 214px; }
+    .home-legend { top: 92px; right: 3%; width: 18%; min-width: 92px; height: 214px; padding: 78px 5px 5px; }
+    .home-error { top: 332px; left: 5%; width: 25%; }
+    .home-info { top: 332px; left: 32%; right: 3%; width: auto; }
+    .home-info .home-notices-panel { top: 12px; right: 8px; width: 55%; }
+  }
 
-    body {
-        margin: 0;
-        background: var(--page-bg);
-        color: #334155;
-        font-family: "Noto Sans JP", "Yu Gothic", sans-serif;
-    }
-
-    .site-header {
-        height: 70px;
-        background: var(--app-blue);
-        color: #fff;
-        box-shadow: 0 1px 5px rgba(20, 45, 90, .18);
-    }
-
-    .header-inner {
-        width: min(1380px, calc(100% - 48px));
-        height: 100%;
-        margin: 0 auto;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-
-    .site-header h1 {
-        margin: 0;
-        color: #fff;
-        font-size: 25px;
-        font-weight: 700;
-        letter-spacing: .02em;
-    }
-
-    .menu-toggle {
-        border: 0;
-        padding: 5px 0;
-        background: transparent;
-        color: #fff;
-        font-size: 27px;
-        line-height: 1;
-        cursor: pointer;
-    }
-
-    .site-nav {
-        position: absolute;
-        top: 70px;
-        right: 24px;
-        z-index: 1000;
-        display: none;
-        min-width: 190px;
-        padding: 14px 18px;
-        background: #fff;
-        border: 1px solid var(--card-border);
-        box-shadow: 0 8px 24px rgba(31, 52, 85, .14);
-    }
-
-    .site-nav.is-open { display: grid; gap: 12px; }
-    .site-nav a { color: var(--app-blue); text-decoration: none; }
-
-    main {
-        width: min(920px, calc(100% - 32px));
-        margin: 32px auto 80px;
-    }
-
-    .home-card {
-        padding: 27px 28px 30px;
-        background: #fff;
-        border: 1px solid var(--card-border);
-        border-radius: 17px;
-        box-shadow: 0 5px 18px rgba(45, 73, 110, .06);
-    }
-
-    .home-card + .home-card { margin-top: 35px; }
-
-    .section-heading {
-        display: flex;
-        align-items: center;
-        gap: 9px;
-        margin: 0 0 20px;
-        color: var(--app-blue);
-        font-size: 23px;
-        line-height: 1.35;
-    }
-
-    .section-heading .heading-icon { font-size: 25px; }
-    .heading-pin,
-    .heading-weather,
-    .icon-pin,
-    .icon-check,
-    .icon-clock,
-    .icon-satellite,
-    .icon-refresh {
-        display: inline-block;
-        flex: 0 0 auto;
-        position: relative;
-    }
-
-    .heading-pin,
-    .icon-pin {
-        width: 18px;
-        height: 21px;
-        background: var(--app-blue);
-        border-radius: 50% 50% 50% 0;
-        transform: rotate(-45deg);
-    }
-
-    .heading-pin::after,
-    .icon-pin::after {
-        position: absolute;
-        width: 6px;
-        height: 6px;
-        top: 6px;
-        left: 6px;
-        border-radius: 50%;
-        background: #fff;
-        content: "";
-    }
-
-    .heading-weather {
-        width: 28px;
-        height: 24px;
-    }
-
-    .heading-weather::before {
-        position: absolute;
-        width: 12px;
-        height: 12px;
-        top: 1px;
-        left: 2px;
-        border-radius: 50%;
-        background: var(--app-blue);
-        box-shadow: 0 -5px 0 -4px var(--app-blue), 0 5px 0 -4px var(--app-blue), 5px 0 0 -4px var(--app-blue), -5px 0 0 -4px var(--app-blue);
-        content: "";
-    }
-
-    .heading-weather::after {
-        position: absolute;
-        width: 20px;
-        height: 11px;
-        right: 0;
-        bottom: 1px;
-        border-radius: 10px;
-        background: var(--app-blue);
-        content: "";
-    }
-
-    .refresh-label { margin-left: auto; color: var(--app-green); font-size: 16px; white-space: nowrap; }
-    .icon-refresh { width: 19px; height: 19px; margin-right: 3px; vertical-align: -3px; font-size: 22px; font-weight: 700; line-height: 17px; }
-    .icon-pin { width: 13px; height: 16px; margin-right: 7px; vertical-align: -2px; }
-    .icon-pin::after { width: 4px; height: 4px; top: 5px; left: 5px; }
-    .icon-check { width: 18px; height: 18px; margin-right: 7px; border-radius: 50%; background: var(--app-green); vertical-align: -3px; }
-    .icon-check::after { position: absolute; left: 5px; top: 1px; color: #fff; content: "✓"; font-size: 13px; }
-    .icon-clock { width: 15px; height: 15px; margin-right: 7px; border: 2px solid #64748b; border-radius: 50%; vertical-align: -2px; }
-    .icon-clock::after { position: absolute; width: 1px; height: 5px; top: 2px; left: 5px; background: #64748b; content: ""; }
-    .icon-satellite { width: 15px; margin-right: 7px; color: #64748b; font-size: 17px; line-height: 14px; vertical-align: -2px; }
-
-    #shelterMap {
-        height: 365px;
-        overflow: hidden;
-        border-radius: 11px;
-    }
-
-    .weather-panel {
-        padding: 22px 19px 17px;
-        background: #f8fafc;
-        border-radius: 11px;
-    }
-
-    .weather-panel p { margin: 0 0 11px; }
-    .weather-panel p:last-child { margin-bottom: 0; }
-    .weather-place { font-size: 18px; font-weight: 700; }
-    .weather-ok { color: var(--app-green); font-size: 17px; font-weight: 700; }
-    .weather-warning-list { margin: 0 0 14px; padding: 0; list-style: none; }
-    .weather-warning-list li { margin: 7px 0; color: #334155; font-weight: 700; }
-    .warning-status { margin-left: 8px; color: #b45309; font-size: 14px; }
-    .weather-meta { color: #64748b; font-size: 14px; }
-    .weather-meta span { margin-right: 5px; color: #64748b; }
-
-    @media (max-width: 640px) {
-        .header-inner { width: calc(100% - 32px); }
-        .site-header h1 { font-size: 21px; }
-        main { width: calc(100% - 20px); margin-top: 18px; }
-        .home-card { padding: 20px 14px 18px; border-radius: 13px; }
-        .home-card + .home-card { margin-top: 18px; }
-        .section-heading { font-size: 19px; }
-        .refresh-label { font-size: 13px; }
-        #shelterMap { height: 280px; }
-    }
+  @media (max-width: 520px) {
+    .home-frame { min-height: 930px; margin-top: 16px; }
+    .home-toolbar { position: relative; justify-content: flex-end; right: auto; width: 100%; }
+    .home-title { width: 48%; }
+    .home-time { width: 115px; padding-top: 15px; }
+    .home-language { top: 47px; right: 9px; }
+    .home-menu, .home-map, .home-legend, .home-error, .home-info { position: relative; top: auto; left: auto; right: auto; width: calc(100% - 24px); margin-right: 12px; margin-left: 12px; }
+    .home-menu { margin-top: 52px; gap: 12px; }
+    .home-menu a { width: 100%; }
+    .home-map { height: 280px; margin-top: 18px; }
+    .home-legend { height: auto; min-height: 100px; margin-top: 18px; padding: 12px; }
+    .home-error { margin-top: 18px; }
+    .home-info { height: auto; min-height: 320px; margin-top: 18px; padding-top: 42px; }
+    .home-info-title { position: static; text-align: center; }
+    .home-info-list { margin-top: 18px; }
+    .home-info-list { width: 100%; }
+    .home-info .home-notices-panel { position: relative; top: auto; right: auto; width: 100%; height: 170px; margin-top: 18px; border-top: 1px solid var(--wire-line); border-left: 0; }
+    .home-notices { height: 130px; }
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<section class="home-card">
-    <h2 class="section-heading"><span class="heading-icon heading-pin" aria-hidden="true"></span>避難所マップ</h2>
+<div class="home-frame">
+  <h1 class="home-title" data-i18n="homeTitle">ホーム画面</h1>
+  <div class="home-toolbar">
+    <time id="currentTime" class="home-time" aria-live="polite"></time>
+    <button id="refreshButton" class="home-refresh" type="button" data-i18n="refresh">更新</button>
+  </div>
+  <label class="sr-only" for="languageSelect">言語選択</label>
+  <select id="languageSelect" class="home-language" aria-label="言語選択">
+    <option value="ja">▼ 日本語</option>
+    <option value="en">English</option>
+    <option value="zh">中文</option>
+  </select>
+
+  <nav class="home-menu" aria-label="ホームメニュー">
+    <a href="{{ url_for('shelter_search') }}" data-i18n="searchShelter">避難所検索</a>
+    <a href="{{ url_for('login', next=url_for('board')) }}" data-i18n="loginStaff">ログイン（職員向け）</a>
+    <a href="{{ url_for('login', next=url_for('shelter_register')) }}" data-i18n="registerShelter">避難所登録</a>
+    <a href="{{ url_for('login', next=url_for('board')) }}" data-i18n="broadcast">指示・発信</a>
+  </nav>
+
+  <section class="home-map" aria-label="避難所と道路の地図">
     <div id="shelterMap"></div>
-</section>
+    <div id="mapPlaceholder" class="map-placeholder">エリア（地図・一覧など）</div>
+  </section>
 
-<section class="home-card">
-    <h2 class="section-heading">
-        <span class="heading-icon heading-weather" aria-hidden="true"></span>青森市 気象警報・注意報
-        <span class="refresh-label"><span class="icon-refresh" aria-hidden="true">↻</span>10分おき自動更新</span>
-    </h2>
-    <div id="weatherContent" class="weather-panel">
-        <p>読み込み中...</p>
-    </div>
-</section>
+  <aside class="home-legend" aria-label="凡例">
+    <div class="home-legend-title">凡例</div>
+    <ul>
+      <li><i class="legend-icon shelter" aria-hidden="true">●</i>避難所</li>
+      <li><i class="legend-icon road closed" aria-hidden="true"></i>通行止め</li>
+      <li><i class="legend-icon road traffic" aria-hidden="true"></i>渋滞</li>
+      <li><i class="legend-icon road caution" aria-hidden="true"></i>通行注意</li>
+      <li><i class="legend-icon warning" aria-hidden="true"></i>警報・避難情報</li>
+    </ul>
+  </aside>
 
-<!-- Leaflet の読み込み -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <p id="homeError" class="home-error" role="alert">エラーメッセージ</p>
+
+  <section class="home-info" aria-label="情報表示欄">
+    <h2 class="home-info-title">情報表示欄</h2>
+    <ul class="home-info-list">
+      <li>最新の災害状況 <strong id="latestStatus">確認中</strong></li>
+      <li>避難所の開設状況 <strong id="shelterStatus">確認中</strong></li>
+      <li>道路状況 <strong id="roadStatus">確認中</strong></li>
+    </ul>
+    <section class="home-notices-panel" aria-labelledby="noticesTitle">
+      <h2 id="noticesTitle" class="home-notices-title">お知らせ</h2>
+      <ul class="home-notices" aria-label="お知らせ一覧">
+        {% for notice in notice_items %}
+        <li class="{% if notice.is_unread %}is-unread{% endif %}" title="{{ notice.content }}">
+          {{ notice.content }}{% if notice.shelter %}<br>避難先: {{ notice.shelter }}{% endif %}
+          <span class="home-notice-status">{{ notice.status or '情報' }}{% if notice.updated_at %} / {{ notice.updated_at }}{% endif %}</span>
+        </li>
+        {% else %}
+        <li data-i18n="noNotices">現在、お知らせはありません。</li>
+        {% endfor %}
+      </ul>
+    </section>
+  </section>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // 地図の初期化（青森市周辺を中心に設定）
-    const map = L.map('shelterMap').setView([40.8187, 140.7440], 12);
+document.addEventListener('DOMContentLoaded', function () {
+  const translations = {
+    ja: { homeTitle: 'ホーム画面', refresh: '更新', searchShelter: '避難所検索', loginStaff: 'ログイン（職員向け）', registerShelter: '避難所登録', broadcast: '指示・発信', noNotices: '・発信情報なし' },
+    en: { homeTitle: 'Home', refresh: 'Refresh', searchShelter: 'Shelter search', loginStaff: 'Staff login', registerShelter: 'Register shelter', broadcast: 'Broadcasts', noNotices: '・No notices' },
+    zh: { homeTitle: '主页', refresh: '刷新', searchShelter: '搜索避难所', loginStaff: '工作人员登录', registerShelter: '登记避难所', broadcast: '指示和发布', noNotices: '・没有通知' }
+  };
+  const languageSelect = document.getElementById('languageSelect');
+  const savedLanguage = localStorage.getItem('bousai-language') || 'ja';
+  languageSelect.value = translations[savedLanguage] ? savedLanguage : 'ja';
+  function applyLanguage(language) {
+    document.querySelectorAll('[data-i18n]').forEach(function (element) { element.textContent = translations[language][element.dataset.i18n]; });
+    localStorage.setItem('bousai-language', language);
+  }
+  languageSelect.addEventListener('change', function () { applyLanguage(languageSelect.value); });
+  applyLanguage(languageSelect.value);
 
-    // OpenStreetMapタイルを追加
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
+  const currentTime = document.getElementById('currentTime');
+  function updateClock() {
+    currentTime.textContent = new Intl.DateTimeFormat('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }).format(new Date()) + '現在';
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
 
-    const shelters = {{ shelters|tojson }};
-    shelters.forEach(function(shelter) {
-        if (shelter.latitude && shelter.longitude) {
-            L.marker([shelter.latitude, shelter.longitude])
-                .addTo(map)
-                .bindPopup('<strong>' + shelter.name + '</strong><br>' + shelter.address);
-        }
+  const map = L.map('shelterMap', { zoomControl: false }).setView([{{ map_center[0] }}, {{ map_center[1] }}], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
+  const shelterLayer = L.layerGroup().addTo(map);
+  const roadLayer = L.layerGroup().addTo(map);
+  const noticeLayer = L.layerGroup().addTo(map);
+  const roadColors = { '通行止め': '#d92d20', '渋滞': '#e47700', '通行注意': '#a56a00' };
+  const roadIconClasses = { '通行止め': 'closed', '渋滞': 'traffic', '通行注意': 'caution' };
+  const mapPlaceholder = document.getElementById('mapPlaceholder');
+  const homeError = document.getElementById('homeError');
+
+  function shelterIcon(status) {
+    return L.divIcon({
+      className: '',
+      html: '<span class="map-shelter-icon' + (status === '開設中' ? ' open' : '') + '">●</span>',
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+      popupAnchor: [0, -12]
     });
+  }
 
-    // 気象警報・注意報の自動更新機能
-    function updateWeatherWarnings() {
-        fetch('/api/weather_warnings')
-            .then(response => response.json())
-            .then(data => {
-                console.log('気象情報を更新しました:', data);
-                updateWeatherContent(data);
-            })
-            .catch(error => {
-                console.error('気象情報の更新に失敗しました:', error);
-            });
-    }
+  function roadIcon(status) {
+    return L.divIcon({
+      className: '',
+      html: '<span class="map-road-icon ' + (roadIconClasses[status] || 'caution') + '">!</span>',
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
+    });
+  }
 
-    function updateWeatherContent(data) {
-        const weatherContent = document.getElementById('weatherContent');
+  function warningIcon() {
+    return L.divIcon({
+      className: '',
+      html: '<span class="map-warning-icon">!</span>',
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+      popupAnchor: [0, -12]
+    });
+  }
 
-        if (data.error) {
-            weatherContent.innerHTML = '<p class="weather-ok">気象情報の取得に失敗しました</p>';
-            return;
-        }
+  function loadMap() {
+    fetch('/api/map_data').then(function (response) { if (!response.ok) throw new Error('map'); return response.json(); }).then(function (data) {
+      shelterLayer.clearLayers(); roadLayer.clearLayers(); noticeLayer.clearLayers();
+      data.shelters.forEach(function (shelter) {
+        const popup = document.createElement('div');
+        const name = document.createElement('strong');
+        name.textContent = shelter.name || '名称未設定';
+        const status = document.createElement('div');
+        status.textContent = shelter.status || '状態不明';
+        popup.appendChild(name);
+        popup.appendChild(status);
+        L.marker([shelter.latitude, shelter.longitude], { icon: shelterIcon(shelter.status), title: shelter.name || '避難所' }).bindPopup(popup).addTo(shelterLayer);
+      });
+      data.roads.forEach(function (road) {
+        L.polyline(road.coordinates, { color: roadColors[road.status] || '#a56a00', weight: 4 }).bindTooltip(road.name || road.status || '道路情報').addTo(roadLayer);
+        const midpoint = road.coordinates[Math.floor(road.coordinates.length / 2)];
+        const roadPopup = document.createElement('div');
+        roadPopup.textContent = (road.status || '道路情報') + (road.name ? '：' + road.name : '');
+        L.marker(midpoint, { icon: roadIcon(road.status), title: road.status || '道路情報' }).bindPopup(roadPopup).addTo(roadLayer);
+      });
+      const residentNotices = {{ resident_notices|tojson }};
+      if (residentNotices.length) {
+        const noticePopup = document.createElement('div');
+        noticePopup.textContent = '住民向け発信：' + residentNotices.map(function (notice) {
+          return (notice.content || '') + (notice.shelter ? '（避難先: ' + notice.shelter + '）' : '');
+        }).join(' / ');
+        L.marker([{{ map_center[0] }}, {{ map_center[1] }}], { icon: warningIcon(), title: '警報・避難情報' }).bindPopup(noticePopup).addTo(noticeLayer);
+      }
+      mapPlaceholder.classList.add('is-hidden');
+      document.getElementById('latestStatus').textContent = '避難所' + data.shelter_total + '件';
+      document.getElementById('shelterStatus').textContent = '開設中' + data.shelter_open + '件';
+      document.getElementById('roadStatus').textContent = data.road_total + '件';
+      homeError.classList.add('is-hidden');
+    }).catch(function () {
+      mapPlaceholder.textContent = '地図情報を取得できません';
+      homeError.textContent = '地図情報の取得に失敗しました';
+      homeError.classList.remove('is-hidden');
+    });
+  }
 
-        let warningsHtml = '';
-        if (data.warnings && data.warnings.length > 0) {
-            warningsHtml = '<ul class="weather-warning-list">';
-            data.warnings.forEach(warning => {
-                warningsHtml += `<li>${warning.name}<span class="warning-status">${warning.status}</span></li>`;
-            });
-            warningsHtml += '</ul>';
-        } else {
-            warningsHtml = '<p class="weather-ok"><span class="icon-check" aria-hidden="true"></span>現在、警報・注意報は発表されていません</p>';
-        }
+  function loadWeather() {
+    fetch('/api/weather_warnings').then(function (response) { return response.json(); }).then(function (data) {
+      if (data.error) { homeError.textContent = '気象情報の取得に失敗しました'; homeError.classList.remove('is-hidden'); }
+      else if (data.warnings && data.warnings.length) { homeError.textContent = '警報・注意報があります'; homeError.classList.remove('is-hidden'); }
+    }).catch(function () { homeError.textContent = '気象情報の取得に失敗しました'; homeError.classList.remove('is-hidden'); });
+  }
 
-        weatherContent.innerHTML = `
-            <p class="weather-place"><span class="icon-pin" aria-hidden="true"></span>${data.area_name || '青森市'}</p>
-            ${warningsHtml}
-            <p class="weather-meta"><span class="icon-clock" aria-hidden="true"></span>データ取得: <span id="lastFetchTime">${data.last_fetch_time || '更新中...'}</span></p>
-            <p class="weather-meta"><span class="icon-satellite" aria-hidden="true">⌁</span>気象庁発表: ${data.report_time || '不明'}</p>
-        `;
-    }
-
-    // 初回表示＋10分（600,000ミリ秒）おきに自動更新
-    updateWeatherWarnings();
-    setInterval(updateWeatherWarnings, 600000);
+  function refresh() { updateClock(); loadMap(); loadWeather(); }
+  document.getElementById('refreshButton').addEventListener('click', refresh);
+  refresh();
+  setInterval(loadWeather, 600000);
 });
 </script>
 {% endblock %}
