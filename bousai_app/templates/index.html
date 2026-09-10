@@ -224,13 +224,22 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // 地図の初期化（藤沢市周辺を中心に設定）
-    const map = L.map('shelterMap').setView([35.3390, 139.4903], 12);
+    // 地図の初期化（青森市周辺を中心に設定）
+    const map = L.map('shelterMap').setView([40.8187, 140.7440], 12);
 
     // OpenStreetMapタイルを追加
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
+
+    const shelters = {{ shelters|tojson }};
+    shelters.forEach(function(shelter) {
+        if (shelter.latitude && shelter.longitude) {
+            L.marker([shelter.latitude, shelter.longitude])
+                .addTo(map)
+                .bindPopup('<strong>' + shelter.name + '</strong><br>' + shelter.address);
+        }
+    });
 
     // 気象警報・注意報の自動更新機能
     function updateWeatherWarnings() {

@@ -239,20 +239,20 @@
         <label for="attributeFilter" class="sr-only">避難所の属性を選択</label>
         <select id="attributeFilter" class="attribute-select">
           <option value="all">▼ 選択してください</option>
-          <option value="barrier-free">バリアフリー対応</option>
-          <option value="pet">ペット同行可</option>
-          <option value="medical">医療救護対応</option>
+          {% for attribute in equipment_options %}
+          <option value="{{ attribute }}">{{ attribute }}</option>
+          {% endfor %}
         </select>
       </div>
       <h2 class="panel-heading">避難所情報一覧</h2>
       {% if results %}
       <ul class="shelter-list">
         {% for shelter in results %}
-        {% set attribute_key = ['barrier-free', 'pet', 'medical'][loop.index0 % 3] %}
-        {% set attribute_name = {'barrier-free': 'バリアフリー対応', 'pet': 'ペット同行可', 'medical': '医療救護対応'}[attribute_key] %}
-        <li data-attribute="{{ attribute_key }}">
+        <li data-attributes="{{ shelter.equipment|join('|') }}">
           <strong>{{ shelter.name }}</strong><br>
-          <small>{{ attribute_name }}</small>
+          <small>{{ shelter.address }} / 定員{{ shelter.capacity }}人 / {{ shelter.status }}</small><br>
+          <small>設備: {{ shelter.equipment|join('、') if shelter.equipment else 'なし' }}</small><br>
+          <small>物資: {{ shelter.supplies|join('、') if shelter.supplies else 'なし' }}</small>
         </li>
         {% endfor %}
       </ul>
@@ -281,20 +281,22 @@ document.addEventListener('DOMContentLoaded', function() {
     String(now.getDate()).padStart(2, '0') + '日 ' + String(now.getHours()).padStart(2, '0') +
     '時' + String(now.getMinutes()).padStart(2, '0') + '分現在';
 
-  const map = L.map('shelterMap').setView([40.8222, 140.7474], 12);
+  const map = L.map('shelterMap').setView([40.8187, 140.7440], 12);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors'
   }).addTo(map);
   {% for shelter in results %}
-  L.marker([40.8222 + {{ loop.index0 }} * 0.01, 140.7474 + {{ loop.index0 }} * 0.01])
-    .addTo(map).bindPopup('{{ shelter.name|e }}');
+  {% if shelter.latitude is defined and shelter.longitude is defined %}
+  L.marker([{{ shelter.latitude }}, {{ shelter.longitude }}])
+    .addTo(map).bindPopup('<strong>{{ shelter.name|e }}</strong><br>{{ shelter.address|e }}');
+  {% endif %}
   {% endfor %}
 
   const attributeFilter = document.getElementById('attributeFilter');
   if (attributeFilter) {
     attributeFilter.addEventListener('change', function() {
       document.querySelectorAll('.shelter-list li').forEach(function(item) {
-        item.hidden = attributeFilter.value !== 'all' && item.dataset.attribute !== attributeFilter.value;
+        item.hidden = attributeFilter.value !== 'all' && !item.dataset.attributes.split('|').includes(attributeFilter.value);
       });
     });
   }

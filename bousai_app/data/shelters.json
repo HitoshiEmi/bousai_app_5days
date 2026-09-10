@@ -1,18 +1,57 @@
 [
   {
     "id": 1,
-    "name": "御所見小学校"
+    "name": "長島小学校",
+    "address": "青森市長島二丁目6-1",
+    "capacity": "300",
+    "status": "未開設",
+    "equipment": ["バリアフリー", "多目的トイレ"],
+    "supplies": ["飲料水", "食料", "毛布"],
+    "latitude": 40.8213262,
+    "longitude": 140.7409667
   },
   {
     "id": 2,
-    "name": "片瀬小学校"
+    "name": "浦町小学校",
+    "address": "青森市中央二丁目17-13",
+    "capacity": "350",
+    "status": "未開設",
+    "equipment": ["仕切り壁", "授乳スペース"],
+    "supplies": ["飲料水", "食料", "おむつ"],
+    "latitude": 40.8186633,
+    "longitude": 140.7490801
+  },
+  {
+    "id": 3,
+    "name": "筒井小学校",
+    "address": "青森市筒井一丁目1-1",
+    "capacity": "400",
+    "status": "未開設",
+    "equipment": ["バリアフリー", "ペット避難可"],
+    "supplies": ["飲料水", "食料", "毛布"],
+    "latitude": 40.8086251,
+    "longitude": 140.7645086
+  },
+  {
+    "id": 4,
+    "name": "古川小学校",
+    "address": "青森市中央二丁目17-13",
+    "capacity": "300",
+    "status": "未開設",
+    "equipment": ["多目的トイレ"],
+    "supplies": ["粉ミルク", "飲料水", "食料"],
+    "latitude": 40.8223655,
+    "longitude": 140.7340782
   },
   {
     "id": 5,
-    "name": "鵠洋小学校"
-  },
-  {
-    "id": 6,
-    "name": "あ"
+    "name": "沖館小学校",
+    "address": "青森市沖館一丁目3-1",
+    "capacity": "350",
+    "status": "未開設",
+    "equipment": ["バリアフリー", "仕切り壁", "多目的トイレ"],
+    "supplies": ["哺乳瓶", "飲料水", "食料", "毛布"],
+    "latitude": 40.8322368,
+    "longitude": 140.721753
   }
 ]

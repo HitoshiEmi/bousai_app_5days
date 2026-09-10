@@ -1,23 +1,139 @@
 {% extends "base.html" %}
 
+{% block title %}避難所登録 - 防災アプリ{% endblock %}
+{% block body_class %}register-screen{% endblock %}
+
+{% block head %}
+<style>
+  * { box-sizing: border-box; }
+  .register-screen { margin: 0; background: #fff; color: #333; font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", sans-serif; }
+  .register-screen .site-header, .register-screen .site-nav { display: none; }
+  .register-screen main { width: 100%; margin: 0; }
+  .register-page { width: min(1426px, calc(100% - 80px)); min-height: 824px; margin: 128px auto 40px; }
+  .register-panel { min-height: 824px; overflow: hidden; background: #fff; border: 3px solid #292929; }
+  .register-heading { display: grid; grid-template-columns: 50% 1fr; min-height: 118px; border-bottom: 0; }
+  .register-heading h2 { display: flex; align-items: center; justify-content: center; margin: 0; background: #d9d9d9; border-right: 1px solid #999; color: #333; font-size: clamp(34px, 3vw, 48px); font-weight: 400; letter-spacing: .03em; }
+  .register-meta { display: flex; align-items: flex-start; justify-content: flex-end; gap: 22px; padding: 18px 27px 0; color: #444; font-size: 20px; white-space: nowrap; }
+  .reset-link { display: inline-flex; align-items: center; justify-content: center; width: 150px; height: 59px; margin-top: 34px; color: #444; background: #dcecf7; border: 2px solid #99a5ad; font-size: 18px; text-decoration: none; }
+  .register-body { display: grid; grid-template-columns: 175px minmax(0, 1fr) 340px; column-gap: 40px; min-height: 703px; padding: 48px 58px 40px 23px; }
+  .register-form { grid-column: 2; min-width: 0; padding-top: 0; }
+  .field { position: relative; display: grid; grid-template-columns: 345px 292px; column-gap: 48px; align-items: start; min-height: 99px; margin: 0; }
+  .field label, .group-label { display: block; grid-column: 1; margin: 0 0 3px; color: #444; font-size: 18px; font-weight: 400; }
+  .required { color: #444; font-size: inherit; }
+  .field input[type="text"], .field input[type="number"], .field select, .load-form select { grid-column: 1; width: 345px; height: 63px; padding: 9px 25px; color: #555; background: #fff; border: 2px solid #999; border-radius: 0; font: inherit; font-size: 18px; }
+  .field input::placeholder { color: #777; }
+  .field input:focus, .field select:focus, .load-form select:focus { outline: 3px solid #c5dff0; border-color: #718895; }
+  .error-text { grid-column: 2; align-self: start; margin: 19px 0 0; padding: 3px 13px; color: #9e2828; background: #fff0f0; border: 2px solid #8f2929; font-size: 18px; line-height: 1.45; }
+  .check-field { min-height: 107px; }
+  .check-field .group-label { margin-bottom: 3px; }
+  .choice-panel { grid-column: 1; position: relative; width: 345px; }
+  .choice-panel summary { display: flex; align-items: center; width: 345px; height: 63px; padding: 9px 25px; color: #444; background: #fff; border: 2px solid #999; font-size: 18px; list-style: none; cursor: pointer; }
+  .choice-panel summary::-webkit-details-marker { display: none; }
+  .choice-panel summary::before { content: "▼"; margin-right: 10px; font-size: 16px; }
+  .choice-panel[open] summary::before { content: "▲"; }
+  .check-grid { position: absolute; z-index: 5; top: 63px; left: 0; display: grid; grid-template-columns: 1fr 1fr; width: 345px; padding: 12px 14px; background: #fff; border: 2px solid #999; }
+  .check-option { display: flex; align-items: center; gap: 6px; min-height: 29px; color: #444; font-size: 14px; font-weight: 400; }
+  .check-option input { width: 16px; height: 16px; accent-color: #526e7c; }
+  .action-column { grid-column: 3; display: flex; flex-direction: column; min-width: 0; padding-top: 1px; }
+  .message { width: 278px; min-height: 72px; margin: 268px 0 106px; padding: 3px 14px; border: 2px solid; font-size: 22px; line-height: 1.18; text-align: center; }
+  .message-success { color: #444; background: #fff900; border-color: #b6b600; }
+  .message-error { color: #9e2828; background: #fff0f0; border-color: #8f2929; }
+  .load-form { width: 278px; margin: 0; }
+  .load-form label { display: none; }
+  .load-form select { width: 278px; height: 63px; padding-left: 25px; }
+  .button-stack { display: block; margin-top: 38px; }
+  .button { display: inline-flex; align-items: center; justify-content: center; width: 278px; height: 63px; padding: 9px 12px; border: 2px solid #99a5ad; border-radius: 0; font: inherit; font-size: 18px; cursor: pointer; }
+  .button-primary, .button-secondary, .button-home { color: #444; background: #dcecf7; border-color: #99a5ad; }
+  .button-primary { margin-top: 38px; }
+  .button-home { grid-column: 1; align-self: start; margin-top: 246px; text-decoration: none; }
+  .button:hover, .reset-link:hover { background: #cce2ef; }
+  @media (max-width: 1000px) {
+    .register-page { width: calc(100% - 28px); margin-top: 28px; }
+    .register-body { grid-template-columns: 1fr; gap: 28px; padding: 30px 24px; }
+    .register-form, .action-column, .button-home { grid-column: 1; }
+    .action-column { align-items: stretch; }
+    .button-home { margin-top: 0; }
+    .message { margin: 0 0 20px; }
+  }
+  @media (max-width: 650px) {
+    .register-page, .register-panel { min-height: 0; }
+    .register-page { width: calc(100% - 16px); margin: 16px auto; }
+    .register-heading { display: block; }
+    .register-heading h2 { min-height: 82px; border-right: 0; font-size: 34px; }
+    .register-meta { justify-content: space-between; align-items: center; padding: 12px 14px; font-size: 14px; }
+    .reset-link { width: 100px; height: 44px; margin-top: 0; font-size: 16px; }
+    .register-body { padding: 22px 14px; }
+    .field { display: block; min-height: 0; margin-bottom: 20px; }
+    .field input[type="text"], .field input[type="number"], .field select, .choice-panel, .choice-panel summary { width: 100%; }
+    .error-text { margin: 8px 0 0; }
+    .check-grid { width: 100%; }
+    .message, .load-form, .load-form select, .button { width: 100%; }
+    .button-primary { margin-top: 0; }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<h2>避難所登録</h2>
-<p>新しい避難所情報を登録します。</p>
+<section class="register-page" aria-labelledby="register-title">
+  <div class="register-panel">
+    <div class="register-heading">
+      <h2 id="register-title">避難所登録</h2>
+      <div class="register-meta">
+        <time datetime="{{ current_time }}">{{ current_time }}現在</time>
+        <a class="reset-link" href="{{ url_for('shelter_register') }}">更新</a>
+      </div>
+    </div>
 
-<!-- 成功・エラーメッセージ表示 -->
-{% if success %}
-  <p>{{ message }}</p>
-{% endif %}
+    <div class="register-body">
+      <form class="register-form" method="post">
+        <input type="hidden" name="action" value="save">
+        <input type="hidden" name="editing_id" value="{{ editing_id }}">
+        <div class="field">
+          <label for="name">避難所名入力（必須）</label>
+          <input type="text" id="name" name="name" value="{{ form_data.name }}" placeholder="（自由入力）" aria-invalid="{{ 'true' if field_errors.name else 'false' }}">
+          {% if field_errors.name %}<p class="error-text" role="alert">{{ field_errors.name }}</p>{% endif %}
+        </div>
+        <div class="field">
+          <label for="address">住所（必須）</label>
+          <input type="text" id="address" name="address" value="{{ form_data.address }}" placeholder="（自由入力）" aria-invalid="{{ 'true' if field_errors.address else 'false' }}">
+          {% if field_errors.address %}<p class="error-text" role="alert">{{ field_errors.address }}</p>{% endif %}
+        </div>
+        <div class="field">
+          <label for="capacity">避難可能人数（必須）</label>
+          <input type="number" id="capacity" name="capacity" min="1" value="{{ form_data.capacity }}" placeholder="（自由入力）" aria-invalid="{{ 'true' if field_errors.capacity else 'false' }}">
+          {% if field_errors.capacity %}<p class="error-text" role="alert">{{ field_errors.capacity }}</p>{% endif %}
+        </div>
+        <div class="field">
+          <label for="status">開設状況選択（必須）</label>
+          <select id="status" name="status" aria-invalid="{{ 'true' if field_errors.status else 'false' }}">
+            <option value="">▼ 選択してください</option>
+            {% for status in statuses %}<option value="{{ status }}"{% if form_data.status == status %} selected{% endif %}>{{ status }}</option>{% endfor %}
+          </select>
+          {% if field_errors.status %}<p class="error-text" role="alert">{{ field_errors.status }}</p>{% endif %}
+        </div>
+        <div class="field check-field">
+          <span class="group-label">設備情報選択</span>
+          <details class="choice-panel"><summary>選択してください</summary><div class="check-grid">{% for option in equipment_options %}<label class="check-option"><input type="checkbox" name="equipment" value="{{ option }}"{% if option in form_data.equipment %} checked{% endif %}> {{ option }}</label>{% endfor %}</div></details>
+        </div>
+        <div class="field check-field">
+          <span class="group-label">物資情報選択</span>
+          <details class="choice-panel"><summary>選択してください</summary><div class="check-grid">{% for option in supply_options %}<label class="check-option"><input type="checkbox" name="supplies" value="{{ option }}"{% if option in form_data.supplies %} checked{% endif %}> {{ option }}</label>{% endfor %}</div></details>
+        </div>
+        <button class="button button-primary" type="submit">{{ '更新ボタン' if editing_id else '登録ボタン' }}</button>
+      </form>
 
-{% if error %}
-  <p>{{ message }}</p>
-{% endif %}
+      <a class="button button-home" href="{{ url_for('index') }}">ホーム</a>
 
-<form method="POST">
-  <p>
-    <label for="name">避難所名（必須）</label><br>
-    <input type="text" id="name" name="name">
-  </p>
-  <p><button type="submit">登録</button></p>
-</form>
+      <aside class="action-column">
+        {% if message %}<p class="message message-{{ message_type }}" role="{{ 'status' if message_type == 'success' else 'alert' }}">{{ message }}</p>{% endif %}
+        <form class="load-form" method="post">
+          <input type="hidden" name="action" value="load">
+          <label for="shelter_id">登録済み避難所</label>
+          <select id="shelter_id" name="shelter_id"><option value="">登録内容更新</option>{% for shelter in shelters %}<option value="{{ shelter.id }}"{% if selected_id == shelter.id|string %} selected{% endif %}>{{ shelter.name }}</option>{% endfor %}</select>
+          <div class="button-stack"><button class="button button-secondary" type="submit">登録内容更新ボタン</button></div>
+        </form>
+      </aside>
+    </div>
+  </div>
+</section>
 {% endblock %}
